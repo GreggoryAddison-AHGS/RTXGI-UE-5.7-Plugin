@@ -1802,6 +1802,7 @@ void DebugShaderPlatformsDetailed()
 
 #if !IS_MONOLITHIC
 
+#if ENGINE_MAJOR_VERSION < 5 || (ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION < 8)
 bool FViewInfo::HasRayTracingScene() const
 {
 	check(Family);
@@ -1812,7 +1813,9 @@ bool FViewInfo::HasRayTracingScene() const
 	}
 	return false;
 }
+#endif
 
+#if ENGINE_MAJOR_VERSION < 5 || (ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION < 8)
 FRHIRayTracingScene* FViewInfo::GetRayTracingSceneChecked(ERayTracingSceneLayer Layer) const
 {
 	check(Family);
@@ -1827,7 +1830,9 @@ FRHIRayTracingScene* FViewInfo::GetRayTracingSceneChecked(ERayTracingSceneLayer 
 	}
 	return nullptr;
 }
+#endif
 
+#if ENGINE_MAJOR_VERSION < 5 || (ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION < 8)
 FRDGBufferSRVRef FViewInfo::GetRayTracingSceneLayerViewChecked(ERayTracingSceneLayer Layer) const
 {
 	FRDGBufferSRVRef Result = nullptr;
@@ -1842,6 +1847,7 @@ FRDGBufferSRVRef FViewInfo::GetRayTracingSceneLayerViewChecked(ERayTracingSceneL
 	checkf(Result, TEXT("Ray tracing scene SRV is expected to be created at this point."));
 	return Result;
 }
+#endif
 
 FRDGBufferUAVRef FViewInfo::GetRayTracingInstanceHitCountUAV(FRDGBuilder& GraphBuilder) const
 {
