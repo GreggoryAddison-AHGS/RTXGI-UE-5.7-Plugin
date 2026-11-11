@@ -144,28 +144,47 @@ static void LoadVolumeTextures_RenderThread(FRDGBuilder& GraphBuilder, FDDGIVolu
 	if (!proxy->TextureLoadContext.ReadyForLoad)
 		return;
 
+	auto CopyLoadedTextureIfCompatible = [&GraphBuilder](const FDDGITexturePixels& LoadedTexture, const TRefCountPtr<IPooledRenderTarget>& Destination, const TCHAR* TextureName)
+	{
+		if (!LoadedTexture.Texture || !Destination)
+			return;
+
+		FRHITexture* DestinationTexture = Destination->GetRHI();
+		if (!DestinationTexture ||
+			LoadedTexture.Texture->GetSizeX() != DestinationTexture->GetSizeX() ||
+			LoadedTexture.Texture->GetSizeY() != DestinationTexture->GetSizeY() ||
+			LoadedTexture.Texture->GetFormat() != DestinationTexture->GetFormat())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("RTXGI skipped restoring %s probe data because the saved texture (%u x %u, format %d) does not match the current texture (%u x %u, format %d)."),
+				TextureName,
+				LoadedTexture.Texture->GetSizeX(), LoadedTexture.Texture->GetSizeY(), (int32)LoadedTexture.Texture->GetFormat(),
+				DestinationTexture ? DestinationTexture->GetSizeX() : 0, DestinationTexture ? DestinationTexture->GetSizeY() : 0,
+				DestinationTexture ? (int32)DestinationTexture->GetFormat() : (int32)PF_Unknown);
+			return;
+		}
+
+		TRefCountPtr<IPooledRenderTarget> Loaded = CreateRenderTarget(LoadedTexture.Texture.GetReference(), TEXT("DDGIProbeDataLoaded"));
+		AddCopyTexturePass(GraphBuilder, GraphBuilder.RegisterExternalTexture(Loaded), GraphBuilder.RegisterExternalTexture(Destination), FRHICopyTextureInfo{});
+	};
+
 	if (proxy->TextureLoadContext.Irradiance.Texture)
 	{
-		TRefCountPtr<IPooledRenderTarget> IrradianceLoaded = CreateRenderTarget(proxy->TextureLoadContext.Irradiance.Texture.GetReference(), TEXT("DDGIIrradianceLoaded"));
-		AddCopyTexturePass(GraphBuilder, GraphBuilder.RegisterExternalTexture(IrradianceLoaded), GraphBuilder.RegisterExternalTexture(proxy->ProbesIrradiance), FRHICopyTextureInfo{});
+		CopyLoadedTextureIfCompatible(proxy->TextureLoadContext.Irradiance, proxy->ProbesIrradiance, TEXT("irradiance"));
 	}
 
 	if (proxy->TextureLoadContext.Distance.Texture)
 	{
-		TRefCountPtr<IPooledRenderTarget> DistanceLoaded = CreateRenderTarget(proxy->TextureLoadContext.Distance.Texture.GetReference(), TEXT("DDGIDistanceLoaded"));
-		AddCopyTexturePass(GraphBuilder, GraphBuilder.RegisterExternalTexture(DistanceLoaded), GraphBuilder.RegisterExternalTexture(proxy->ProbesDistance), FRHICopyTextureInfo{});
+		CopyLoadedTextureIfCompatible(proxy->TextureLoadContext.Distance, proxy->ProbesDistance, TEXT("distance"));
 	}
 
 	if (proxy->TextureLoadContext.Offsets.Texture && proxy->ProbesOffsets)
 	{
-		TRefCountPtr<IPooledRenderTarget> OffsetsLoaded = CreateRenderTarget(proxy->TextureLoadContext.Offsets.Texture.GetReference(), TEXT("DDGIOffsetsLoaded"));
-		AddCopyTexturePass(GraphBuilder, GraphBuilder.RegisterExternalTexture(OffsetsLoaded), GraphBuilder.RegisterExternalTexture(proxy->ProbesOffsets), FRHICopyTextureInfo{});
+		CopyLoadedTextureIfCompatible(proxy->TextureLoadContext.Offsets, proxy->ProbesOffsets, TEXT("offsets"));
 	}
 
 	if (proxy->TextureLoadContext.States.Texture && proxy->ProbesStates)
 	{
-		TRefCountPtr<IPooledRenderTarget> StatesLoaded = CreateRenderTarget(proxy->TextureLoadContext.States.Texture.GetReference(), TEXT("DDGIStatesLoaded"));
-		AddCopyTexturePass(GraphBuilder, GraphBuilder.RegisterExternalTexture(StatesLoaded), GraphBuilder.RegisterExternalTexture(proxy->ProbesStates), FRHICopyTextureInfo{});
+		CopyLoadedTextureIfCompatible(proxy->TextureLoadContext.States, proxy->ProbesStates, TEXT("states"));
 	}
 
 	proxy->TextureLoadContext.Clear();
